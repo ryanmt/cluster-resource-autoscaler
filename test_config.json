@@ -1,0 +1,20 @@
+[
+  {
+    "ResourceName": "cpu",
+    "ResourcePerReplica": "500m",
+    "TargetDeployment": {
+      "Name": "nginx",
+      "Namespace": "default"
+    },
+    "TargetUtilization": 0.90
+  },
+  {
+    "ResourceName": "memory",
+    "ResourcePerReplica": "500Mi",
+    "TargetDeployment": {
+      "Name": "nginx",
+      "Namespace": "default"
+    },
+    "TargetUtilization": 0.50
+  }
+]
