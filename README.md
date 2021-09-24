@@ -14,6 +14,7 @@ scope are:
 - HA leader election for resiliency of this autoscaler
 - Histeresis in scaling to avoid flapping
 - Support any "Scalable" API entity rather than just deployments, replicasets, and statefulsets.
+- Resolve for maximum among all scaling parameters
 
 ## Configuring a target for autoscaling
 
