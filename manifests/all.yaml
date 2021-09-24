@@ -27,9 +27,6 @@ spec:
       containers:
         - name: controller
           image: starlord.inscloudgate.net/rtaylor/resource-autoscaler:alpha
-          env:
-            - name: VERBOSE
-              value: "4"
           resources:
             limits:
               cpu: 100m
