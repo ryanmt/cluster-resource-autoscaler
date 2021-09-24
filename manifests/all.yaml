@@ -30,6 +30,21 @@ spec:
           env:
             - name: VERBOSE
               value: "4"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 32Mi
+            requests:
+              cpu: 100m
+              memory: 32Mi
+          volumeMounts:
+            - name: config
+              mountPath: "/config"
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: resource-scaler-config
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -54,6 +69,15 @@ rules:
     verbs:
       - get
       - list
+  - apiGroups:
+      - "apps"
+    resources:
+      - deployments/scale
+      - replicasets/scale
+      - statefulsets/scale
+    verbs:
+      - get
+      - patch
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -105,3 +129,32 @@ spec:
       - ipBlock:
           cidr: 0.0.0.0/0
   podSelector: {}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resource-scaler-config
+  namespace: resource-autoscaler
+data:
+  config.json: |
+    [
+      {
+        "CPUPerReplica": 16,
+        "Name": "cpu scaler",
+        "Target": {
+          "Name": "nginx",
+          "Namespace": "default",
+          "Type": "deployment"
+        }
+      },
+      {
+        "MemoryPerReplica": 100e9,
+        "Name": "scale on memory",
+        "Target": {
+          "Name": "nginx",
+          "Namespace": "default",
+          "Type": "deployment"
+        }
+      }
+    ]

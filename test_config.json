@@ -1,20 +1,20 @@
 [
   {
-    "ResourceName": "cpu",
-    "ResourcePerReplica": "500m",
-    "TargetDeployment": {
+    "CPUPerReplica": 16,
+    "Name": "cpu scaler",
+    "Target": {
       "Name": "nginx",
-      "Namespace": "default"
-    },
-    "TargetUtilization": 0.90
+      "Namespace": "default",
+      "Type": "deployment"
+    }
   },
   {
-    "ResourceName": "memory",
-    "ResourcePerReplica": "500Mi",
-    "TargetDeployment": {
+    "MemoryPerReplica": 100e9,
+    "Name": "scale on memory",
+    "Target": {
       "Name": "nginx",
-      "Namespace": "default"
-    },
-    "TargetUtilization": 0.50
+      "Namespace": "default",
+      "Type": "deployment"
+    }
   }
 ]

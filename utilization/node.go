@@ -58,7 +58,24 @@ func Init(initCtx context.Context, isDev bool) {
 	k8client = kubernetes.NewForConfigOrDie(config)
 }
 
-func PercentageByResource(resource corev1.ResourceName) (float64, error) {
+// CapacityByResource current cluster capacity of given resource in cores or kilobytes
+func CapacityByResource(resource corev1.ResourceName) int64 {
+	n, err := k8client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	var allocatableResource int64
+
+	for _, node := range n.Items {
+		quantity := node.Status.Allocatable[resource]
+		allocatableResource += quantity.MilliValue()
+	}
+
+	logger.V(1).Info("Node resources allocated", "resource", resource, "value", allocatableResource)
+	return allocatableResource / 1000
+}
+
+func UtilizationByResource(resource corev1.ResourceName) int64 {
 	nodeMetrics, err := metricClient.NodeMetricses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		fmt.Printf("Error getting Metrics: %v\n", err.Error())
@@ -66,23 +83,23 @@ func PercentageByResource(resource corev1.ResourceName) (float64, error) {
 
 	nMetrics := getMetrics(nodeMetrics.Items, resource)
 
-	var nodeResourceUsage, nodeResourceAvailable int64
+	var nodeResourceUsage int64
 
-	nodeResourceAvailable = getNodeResourcesAllocatable(resource)
 	for k, m := range nMetrics {
 		logger.V(2).Info("Found node metric", "resource", resource.String(), "node", k, "value", m.Value)
 		nodeResourceUsage += m.Value
 	}
-	logger.V(1).Info("Node utilization in millicores", "value", nodeResourceUsage)
-	logger.V(1).Info("Node resources allocated (millicores)", "value", nodeResourceAvailable)
+	logger.V(1).Info("Node utilization", "resource", resource, "value", nodeResourceUsage)
 
-	return float64(nodeResourceUsage) / float64(nodeResourceAvailable), nil
+	return nodeResourceUsage
+}
+
+func PercentageByResource(resource corev1.ResourceName) float64 {
+	return float64(UtilizationByResource(resource)) / float64(CapacityByResource(resource))
 }
 
 // resourceNames
 type CoreResourceNames = []corev1.ResourceName
-
-const CPU = corev1.ResourceCPU
 
 func ResourceNames() []corev1.ResourceName {
 	return []corev1.ResourceName{
@@ -92,21 +109,6 @@ func ResourceNames() []corev1.ResourceName {
 		corev1.ResourceMemory,
 		corev1.ResourceStorage,
 	}
-}
-
-func getNodeResourcesAllocatable(resourceName corev1.ResourceName) int64 {
-	n, err := k8client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
-	var allocatableResource int64
-
-	for _, node := range n.Items {
-		quantity := node.Status.Allocatable[resourceName]
-		allocatableResource += quantity.MilliValue()
-	}
-
-	return allocatableResource
 }
 
 func getMetrics(rawNodeMetrics []v1beta1.NodeMetrics, resource corev1.ResourceName) Metrics {
@@ -120,7 +122,7 @@ func getMetrics(rawNodeMetrics []v1beta1.NodeMetrics, resource corev1.ResourceNa
 		res[m.Name] = MetricDatum{
 			Timestamp: m.Timestamp.Time,
 			Window:    m.Window.Duration,
-			Value:     resValue.MilliValue(),
+			Value:     resValue.Value(),
 		}
 	}
 	return res

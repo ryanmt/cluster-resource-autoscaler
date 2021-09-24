@@ -1,12 +1,15 @@
 package check
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
-	corev1 "k8s.io/api/core/v1"
+	"github.com/go-logr/logr"
+	"github.com/ryanmt/cluster-resource-autoscaler/logging"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Support checks from CM
@@ -15,22 +18,42 @@ import (
 type ScalingTarget struct {
 	Name      string
 	Namespace string
-}
-
-type Resource struct {
-	Name                    string
-	ReplicaScalingThreshold string // soemthing like `500m` as the "amount of cluster compute to base replicas on"
+	Type      string
 }
 
 type Spec struct {
-	ResourceName       string        // Target resource, ala CPU, Memory
-	ResourcePerReplica string        // How much resource per replica of the deployment
-	TargetDeployment   ScalingTarget // What deployment to scale
-	TargetUtilization  float64       // Target utilization for the resourceName
+	CPUPerReplica    float64 // In millicores
+	MemoryPerReplica float64 // In bytes
+	Name             string  // A defined name for this scaling configuration
+	// ResourcePerReplica string        // How much resource per replica of the deployment
+	Target ScalingTarget // What deployment to scale
+	// TargetUtilization  float64       // Target utilization for the resourceName
 }
 
-func (s *Spec) Resource() corev1.ResourceName {
-	return lookupResourceByName(s.ResourceName)
+// deploymentKey generates a unique string for comparing between Spec targets
+func (s *ScalingTarget) deploymentKey() string {
+	return fmt.Sprintf("%s/%s", s.Namespace, s.Name)
+}
+
+func (s *Spec) TargetKey() string {
+	return s.Target.deploymentKey()
+}
+
+func (s *Spec) ResourceScaler(rName v1.ResourceName) float64 {
+	switch rName {
+	case v1.ResourceCPU:
+		return s.CPUPerReplica
+	case v1.ResourceMemory:
+		return s.MemoryPerReplica
+	}
+	return 0.0
+}
+
+var logger logr.Logger
+
+// Init configures our hooks for a logger
+func Init(ctx context.Context) {
+	logger = logging.FromContextOrDiscard(ctx)
 }
 
 func FromFile(jsonFile string) ([]Spec, error) {
@@ -61,7 +84,7 @@ func FromReader(r io.Reader) ([]Spec, error) {
 		err := d.Decode(&s)
 		if err != nil {
 			// Blah blah blah
-			fmt.Printf("AHHHH!!! things didn't decode!!!")
+			logger.Error(err, "Error decoding configuration")
 			return specList, err
 		}
 
@@ -72,39 +95,46 @@ func FromReader(r io.Reader) ([]Spec, error) {
 		return specList, err
 	}
 
-	// TODO: validate each resourceName is in set
+	var depUnique map[string]bool
+
+	// TODO: validate each check
 	for _, s := range specList {
-		if !validResourceName(s.ResourceName) {
-			fmt.Printf("Invalid resource name: %s\n", s.ResourceName)
+		if ok := depUnique[s.Target.deploymentKey()]; ok {
+			// We've already seen this key...
+			logger.V(-1).Info("Already have a configuration, skipping...", "deploymentKey", s.TargetKey())
 		}
 	}
+	// if !validResourceName(s.ResourceName) {
+	// 	fmt.Printf("Invalid resource name: %s\n", s.ResourceName)
+	// }
+	// }
 
 	return specList, nil
 }
 
-var validResourceNames = []string{"cpu", "memory", "ephemeral_storage", "huge_pages"}
+// var validResourceNames = []string{"cpu", "memory", "ephemeral_storage", "huge_pages"}
 
-func validResourceName(name string) bool {
-	for _, n := range validResourceNames {
-		if n == name {
-			return true
-		}
-	}
+// func validResourceName(name string) bool {
+// 	for _, n := range validResourceNames {
+// 		if n == name {
+// 			return true
+// 		}
+// 	}
 
-	return false
-}
+// 	return false
+// }
 
-func lookupResourceByName(name string) corev1.ResourceName {
-	switch name {
-	case "cpu":
-		return corev1.ResourceCPU
-	case "memory":
-		return corev1.ResourceMemory
-	case "ephemeral_storage":
-		return corev1.ResourceEphemeralStorage
-	case "huge_pages":
-		return corev1.ResourceHugePagesPrefix
-	default:
-		return corev1.ResourceCPU
-	}
-}
+// func lookupResourceByName(name string) corev1.ResourceName {
+// 	switch name {
+// 	case "cpu":
+// 		return corev1.ResourceCPU
+// 	case "memory":
+// 		return corev1.ResourceMemory
+// 	case "ephemeral_storage":
+// 		return corev1.ResourceEphemeralStorage
+// 	case "huge_pages":
+// 		return corev1.ResourceHugePagesPrefix
+// 	default:
+// 		return corev1.ResourceCPU
+// 	}
+// }
