@@ -18,7 +18,7 @@ import (
 type ScalingTarget struct {
 	Name      string
 	Namespace string
-	Type      string
+	Kind      string
 }
 
 type Spec struct {
@@ -30,13 +30,13 @@ type Spec struct {
 	// TargetUtilization  float64       // Target utilization for the resourceName
 }
 
-// deploymentKey generates a unique string for comparing between Spec targets
-func (s *ScalingTarget) deploymentKey() string {
-	return fmt.Sprintf("%s/%s", s.Namespace, s.Name)
+// Key generates a unique string for comparing between Spec targets
+func (s *ScalingTarget) Key() string {
+	return fmt.Sprintf("%s/%s (%s)", s.Namespace, s.Name, s.Kind)
 }
 
 func (s *Spec) TargetKey() string {
-	return s.Target.deploymentKey()
+	return s.Target.Key()
 }
 
 func (s *Spec) ResourceScaler(rName v1.ResourceName) float64 {

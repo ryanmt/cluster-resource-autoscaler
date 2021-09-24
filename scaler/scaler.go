@@ -71,7 +71,7 @@ func GetReplicas(target check.ScalingTarget) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	logger.V(2).Info("Current scale", "scale", currentScale.Status.Replicas)
+	logger.V(2).Info("Current scale", "scale", currentScale.Status.Replicas, "target", target.Key())
 
 	return currentScale.Status.Replicas, nil
 }
@@ -110,5 +110,5 @@ func lookupGroupResource(target check.ScalingTarget) schema.GroupResource {
 	//   group = "apps"
 	// }
 
-	return schema.ParseGroupResource(fmt.Sprintf("%s.%s", target.Type, group))
+	return schema.ParseGroupResource(fmt.Sprintf("%s.%s", target.Kind, group))
 }
