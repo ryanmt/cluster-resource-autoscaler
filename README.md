@@ -91,4 +91,7 @@ Metric permissions are only now required for debugging logging statements and wi
 
 *kind*/scale permissions are required to check current scale and to apply scale updates to targets
 
+### Development
+
+```export RESOURCE_AUTOSCALER_TESTING_MODE=yes ; inotifyrun go run ./main.go -- -v=9 --logging-format=json```
 
