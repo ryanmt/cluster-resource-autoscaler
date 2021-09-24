@@ -71,7 +71,7 @@ func GetReplicas(target check.ScalingTarget) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	logger.Info("Current scale", "scale", currentScale.Status.Replicas)
+	logger.V(2).Info("Current scale", "scale", currentScale.Status.Replicas)
 
 	return currentScale.Status.Replicas, nil
 }
@@ -80,13 +80,23 @@ func UpdateReplicas(target check.ScalingTarget, desiredReplicas int32) (prevRepl
 	gr := lookupGroupResource(target)
 
 	s := &autoscalingv1.Scale{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      target.Name,
+			Namespace: target.Namespace,
+		},
 		Spec: autoscalingv1.ScaleSpec{
 			Replicas: desiredReplicas,
 		},
 	}
 
 	newScale, err := scaler.Scales(target.Namespace).Update(ctx, gr, s, metav1.UpdateOptions{})
-	return newScale.Status.Replicas, err
+	if err != nil {
+		logger.Error(err, "WTH", "newScale", newScale, "gr", gr)
+		return newScale.Spec.Replicas, err
+	}
+	logger.V(2).Info("Scaling complete", "scale", newScale)
+
+	return newScale.Status.Replicas, nil
 }
 
 func lookupGroupResource(target check.ScalingTarget) schema.GroupResource {
@@ -100,8 +110,5 @@ func lookupGroupResource(target check.ScalingTarget) schema.GroupResource {
 	//   group = "apps"
 	// }
 
-	logger.Info("ScalingTarget", "target", target)
-	thing := fmt.Sprintf("%s.%s", target.Type, group)
-	logger.Info("GroupResource is weird", "gr", thing)
-	return schema.ParseGroupResource(thing)
+	return schema.ParseGroupResource(fmt.Sprintf("%s.%s", target.Type, group))
 }

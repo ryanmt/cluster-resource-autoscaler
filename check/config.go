@@ -77,6 +77,8 @@ func FromReader(r io.Reader) ([]Spec, error) {
 		return specList, err
 	}
 
+	depUnique := make(map[string]bool)
+
 	// TODO: Not sure if the the streaming version is a good idea in complexity...
 	// just feels safer to model a bounded JSON implementation
 	for d.More() {
@@ -88,6 +90,13 @@ func FromReader(r io.Reader) ([]Spec, error) {
 			return specList, err
 		}
 
+		if _, ok := depUnique[s.TargetKey()]; ok {
+			// We've already seen this key...
+			logger.Info("Already have a configuration, skipping...", "deploymentKey", s.TargetKey(), "checkSpec", s.Name)
+			continue
+		} else {
+			depUnique[s.TargetKey()] = true
+		}
 		specList = append(specList, s)
 	}
 	_, err = d.Token() // Should just be the final bracket
@@ -95,46 +104,5 @@ func FromReader(r io.Reader) ([]Spec, error) {
 		return specList, err
 	}
 
-	var depUnique map[string]bool
-
-	// TODO: validate each check
-	for _, s := range specList {
-		if ok := depUnique[s.Target.deploymentKey()]; ok {
-			// We've already seen this key...
-			logger.V(-1).Info("Already have a configuration, skipping...", "deploymentKey", s.TargetKey())
-		}
-	}
-	// if !validResourceName(s.ResourceName) {
-	// 	fmt.Printf("Invalid resource name: %s\n", s.ResourceName)
-	// }
-	// }
-
 	return specList, nil
 }
-
-// var validResourceNames = []string{"cpu", "memory", "ephemeral_storage", "huge_pages"}
-
-// func validResourceName(name string) bool {
-// 	for _, n := range validResourceNames {
-// 		if n == name {
-// 			return true
-// 		}
-// 	}
-
-// 	return false
-// }
-
-// func lookupResourceByName(name string) corev1.ResourceName {
-// 	switch name {
-// 	case "cpu":
-// 		return corev1.ResourceCPU
-// 	case "memory":
-// 		return corev1.ResourceMemory
-// 	case "ephemeral_storage":
-// 		return corev1.ResourceEphemeralStorage
-// 	case "huge_pages":
-// 		return corev1.ResourceHugePagesPrefix
-// 	default:
-// 		return corev1.ResourceCPU
-// 	}
-// }

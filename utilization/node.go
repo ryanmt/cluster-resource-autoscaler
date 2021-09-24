@@ -71,7 +71,7 @@ func CapacityByResource(resource corev1.ResourceName) int64 {
 		allocatableResource += quantity.MilliValue()
 	}
 
-	logger.V(1).Info("Node resources allocated", "resource", resource, "value", allocatableResource)
+	logger.V(2).Info("Node resources allocated", "resource", resource, "value", allocatableResource)
 	return allocatableResource / 1000
 }
 
@@ -86,10 +86,10 @@ func UtilizationByResource(resource corev1.ResourceName) int64 {
 	var nodeResourceUsage int64
 
 	for k, m := range nMetrics {
-		logger.V(2).Info("Found node metric", "resource", resource.String(), "node", k, "value", m.Value)
+		logger.V(3).Info("Found node metric", "resource", resource.String(), "node", k, "value", m.Value)
 		nodeResourceUsage += m.Value
 	}
-	logger.V(1).Info("Node utilization", "resource", resource, "value", nodeResourceUsage)
+	logger.V(2).Info("Node utilization", "resource", resource, "value", nodeResourceUsage)
 
 	return nodeResourceUsage
 }
@@ -116,7 +116,7 @@ func getMetrics(rawNodeMetrics []v1beta1.NodeMetrics, resource corev1.ResourceNa
 	for _, m := range rawNodeMetrics {
 		resValue, found := m.Usage[resource]
 		if !found {
-			logger.V(1).Info("Missing resource metric", "resourceName", resource.String(), "namespace", m.Namespace, "name", m.Name)
+			logger.V(2).Info("Missing resource metric", "resourceName", resource.String(), "namespace", m.Namespace, "name", m.Name)
 			break
 		}
 		res[m.Name] = MetricDatum{

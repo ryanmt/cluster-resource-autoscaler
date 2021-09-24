@@ -3,6 +3,15 @@
     "CPUPerReplica": 16,
     "Name": "cpu scaler",
     "Target": {
+      "Name": "testing-dockerhub-deployment",
+      "Namespace": "rtaylor",
+      "Type": "deployment"
+    }
+  },
+  {
+    "MemoryPerReplica": 100e9,
+    "Name": "scale on memory",
+    "Target": {
       "Name": "nginx",
       "Namespace": "default",
       "Type": "deployment"
@@ -10,7 +19,7 @@
   },
   {
     "MemoryPerReplica": 100e9,
-    "Name": "scale on memory",
+    "Name": "scale on memory2",
     "Target": {
       "Name": "nginx",
       "Namespace": "default",
