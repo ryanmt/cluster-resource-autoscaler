@@ -74,7 +74,7 @@ rules:
       - statefulsets/scale
     verbs:
       - get
-      - patch
+      - update
 ---
 apiVersion: v1
 kind: ServiceAccount

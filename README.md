@@ -83,7 +83,7 @@ Must provide a `ClusterRole` which allows:
   - statefulsets/scale
   verbs:
   - get
-  - patch
+  - update
 ```
 
 Node permissions are required to determine how much cluster compute is available
