@@ -12,43 +12,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// Support checks from CM
-// Support checks from JSON
-
-type ScalingTarget struct {
-	Name      string
-	Namespace string
-	Kind      string
-}
-
-type Spec struct {
-	CPUPerReplica    float64 // In millicores
-	MemoryPerReplica float64 // In bytes
-	Name             string  // A defined name for this scaling configuration
-	// ResourcePerReplica string        // How much resource per replica of the deployment
-	Target ScalingTarget // What deployment to scale
-	// TargetUtilization  float64       // Target utilization for the resourceName
-}
-
-// Key generates a unique string for comparing between Spec targets
-func (s *ScalingTarget) Key() string {
-	return fmt.Sprintf("%s/%s (%s)", s.Namespace, s.Name, s.Kind)
-}
-
-func (s *Spec) TargetKey() string {
-	return s.Target.Key()
-}
-
-func (s *Spec) ResourceScaler(rName v1.ResourceName) float64 {
-	switch rName {
-	case v1.ResourceCPU:
-		return s.CPUPerReplica
-	case v1.ResourceMemory:
-		return s.MemoryPerReplica
-	}
-	return 0.0
-}
-
 var logger logr.Logger
 
 // Init configures our hooks for a logger
@@ -56,6 +19,8 @@ func Init(ctx context.Context) {
 	logger = logging.FromContextOrDiscard(ctx)
 }
 
+// Support checks from CM :done:
+// Support checks from JSON :done:
 func FromFile(jsonFile string) ([]Spec, error) {
 	file, err := os.Open(jsonFile)
 	if err != nil {
@@ -80,7 +45,7 @@ func FromReader(r io.Reader) ([]Spec, error) {
 	depUnique := make(map[string]bool)
 
 	// TODO: Not sure if the the streaming version is a good idea in complexity...
-	// just feels safer to model a bounded JSON implementation
+	// just feels safer to model a bounded JSON parsing implementation
 	for d.More() {
 		var s Spec
 		err := d.Decode(&s)
@@ -91,7 +56,7 @@ func FromReader(r io.Reader) ([]Spec, error) {
 		}
 
 		if _, ok := depUnique[s.TargetKey()]; ok {
-			// We've already seen this key...
+			// We've already seen this key which is a bad configuration.  Probs should error or something but RN this is just a info statement. :|
 			logger.Info("Already have a configuration, skipping...", "deploymentKey", s.TargetKey(), "checkSpec", s.Name)
 			continue
 		} else {
@@ -105,4 +70,41 @@ func FromReader(r io.Reader) ([]Spec, error) {
 	}
 
 	return specList, nil
+}
+
+type ScalingTarget struct {
+	Name      string
+	Namespace string
+	Kind      string
+}
+
+// Key generates a unique string for comparing between Spec targets
+func (s *ScalingTarget) Key() string {
+	return fmt.Sprintf("%s->%s/%s", s.Kind, s.Namespace, s.Name)
+}
+
+type Spec struct {
+	CPUPerReplica    float64 // In millicores
+	MemoryPerReplica float64 // In bytes
+	Name             string  // A defined name for this scaling configuration
+	// ResourcePerReplica string        // How much resource per replica of the deployment
+	Target ScalingTarget // What deployment to scale
+	// TargetUtilization  float64       // Target utilization for the resourceName
+}
+
+func (s *Spec) TargetKey() string {
+	return s.Target.Key()
+}
+
+func (s *Spec) ResourceScaler(rName v1.ResourceName) float64 {
+	// TODO: Add ability to scale on these components as well:
+	// corev1.ResourceEphemeralStorage
+	// corev1.ResourceHugePagesPrefix
+	switch rName {
+	case v1.ResourceCPU:
+		return s.CPUPerReplica
+	case v1.ResourceMemory:
+		return s.MemoryPerReplica
+	}
+	return 0.0
 }

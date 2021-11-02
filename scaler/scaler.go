@@ -101,7 +101,7 @@ func UpdateReplicas(target check.ScalingTarget, desiredReplicas int32) (prevRepl
 
 func lookupGroupResource(target check.ScalingTarget) schema.GroupResource {
 	var group string = "apps"
-	// switch target.Type {
+	// switch target.Kind {
 	// case "deployment":
 	//   group = "apps"
 	// case "replicaset":
