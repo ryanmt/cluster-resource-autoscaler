@@ -3,21 +3,15 @@ package utilization
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/ryanmt/cluster-resource-autoscaler/kubeapi"
 	"github.com/ryanmt/cluster-resource-autoscaler/logging"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
-	resourceclient "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
-
-	"k8s.io/client-go/rest"
 )
 
 type MetricDatum struct {
@@ -29,38 +23,16 @@ type MetricDatum struct {
 type Metrics map[string]MetricDatum
 
 var logger logr.Logger
-var metricClient *resourceclient.MetricsV1beta1Client
-var k8client *kubernetes.Clientset
 var ctx context.Context
 
-func Init(initCtx context.Context, isDev bool) {
-	var err error
-	var config *rest.Config
-
+func Init(initCtx context.Context) {
 	logger = logging.FromContextOrDiscard(initCtx)
 	ctx = initCtx
-
-	if isDev {
-		kubeconfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
-
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			panic(err.Error())
-		}
-	} else {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			panic(err.Error())
-		}
-	}
-
-	metricClient = resourceclient.NewForConfigOrDie(config)
-	k8client = kubernetes.NewForConfigOrDie(config)
 }
 
 // CapacityByResource current cluster capacity of given resource in cores or kilobytes
 func CapacityByResource(resource corev1.ResourceName) int64 {
-	n, err := k8client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	n, err := kubeapi.APIClient().CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
@@ -76,7 +48,7 @@ func CapacityByResource(resource corev1.ResourceName) int64 {
 }
 
 func UtilizationByResource(resource corev1.ResourceName) int64 {
-	nodeMetrics, err := metricClient.NodeMetricses().List(ctx, metav1.ListOptions{})
+	nodeMetrics, err := kubeapi.MetricClient().NodeMetricses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		fmt.Printf("Error getting Metrics: %v\n", err.Error())
 	}

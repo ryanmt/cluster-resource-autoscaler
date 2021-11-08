@@ -38,6 +38,17 @@ spec:
             - name: config
               mountPath: "/config"
               readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8085
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8085
+            periodSeconds: 5
       volumes:
         - name: config
           configMap:

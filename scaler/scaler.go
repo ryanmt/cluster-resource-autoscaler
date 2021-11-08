@@ -3,10 +3,10 @@ package scaler
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
 	"github.com/go-logr/logr"
 	"github.com/ryanmt/cluster-resource-autoscaler/check"
+	"github.com/ryanmt/cluster-resource-autoscaler/kubeapi"
 	"github.com/ryanmt/cluster-resource-autoscaler/logging"
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -15,39 +15,21 @@ import (
 	"k8s.io/client-go/discovery"
 	cacheddiscovery "k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/scale"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 )
 
 var ctx context.Context
-var k8client *kubernetes.Clientset
 var logger logr.Logger
 var scaler scale.ScalesGetter
 
-func Init(initCtx context.Context, isDev bool) {
-	var config *rest.Config
+func Init(initCtx context.Context) {
 	var err error
 
 	logger = logging.FromContextOrDiscard(initCtx)
 	ctx = initCtx
 
-	if isDev {
-		kubeconfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
-
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-		if err != nil {
-			panic(err.Error())
-		}
-	} else {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			panic(err.Error())
-		}
-	}
+	config := kubeapi.Config
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		panic(err.Error())
@@ -61,8 +43,6 @@ func Init(initCtx context.Context, isDev bool) {
 	if err != nil {
 		panic(err.Error())
 	}
-
-	k8client = kubernetes.NewForConfigOrDie(config)
 }
 
 func GetReplicas(target check.ScalingTarget) (int32, error) {
